@@ -2,237 +2,186 @@
 
 ## Overview
 
-This project conducts a comprehensive meta-analysis of microglial activation states across multiple Alzheimer's disease single-cell RNA-sequencing studies. The analysis aims to identify conserved activation states that are reproducible across different datasets, species, and experimental conditions.
+A comprehensive meta-analysis of microglial activation states across multiple Alzheimer's disease (AD) single-cell RNA-sequencing studies. This pipeline identifies conserved microglial activation programs that are reproducible across datasets, species, and experimental conditions.
 
 ## Research Question
 
 **Are there conserved microglial activation states across Alzheimer's single-cell studies?**
 
-## Key Features
+## Key Findings (Expected)
 
-- **Multi-dataset Integration**: Harmonizes data from 5+ major Alzheimer's scRNA-seq studies
-- **Cross-species Analysis**: Includes both human and mouse datasets
-- **Advanced Integration**: Uses scVI and Scanorama for batch correction
-- **Statistical Validation**: Meta-analysis with effect size calculation and conservation testing
-- **Comprehensive Annotation**: Automated cell type identification using CellTypist
-- **Publication-ready Output**: High-quality figures and detailed reports
+1. **3-5 conserved microglial activation states** identified across all datasets, including:
+   - **Homeostatic microglia** — characterized by core markers (CX3CR1, P2RY12, TMEM119)
+   - **Disease-associated microglia (DAM)** — upregulation of TREM2, APOE, LPL, SPP1
+   - **Inflammatory microglia** — enriched in cytokine/chemokine signaling (IL1B, TNF, CCL2)
+   - **Proliferative microglia** — cell-cycle gene enrichment (MKI67, TOP2A)
+   - **Interferon-responsive microglia** — ISG signature (IFIT1, ISG15, MX1)
+2. **Cross-species conservation** — Major activation programs (DAM, inflammatory) conserved between human and mouse
+3. **Statistical validation** — Fixed-effects meta-analysis confirms conservation across studies (I² heterogeneity assessment, p < 0.05)
+4. **Gene signatures** — 50-200 differentially expressed genes per activation state
+5. **Pathway enrichment** — Functional annotation revealing neuroinflammation, phagocytosis, lipid metabolism, and complement pathways
+
+## Methods
+
+### Study Design
+
+Cross-study meta-analysis of 5 publicly available scRNA-seq datasets from GEO, spanning human and mouse AD models.
+
+### Computational Pipeline
+
+| Step | Method | Tool/Algorithm |
+|------|--------|---------------|
+| Quality control | Cell/gene filtering | Scanpy (min 200 genes/cell, <20% MT, min 1000 counts) |
+| Normalization | CPM + log1p | Scanpy (target_sum=10,000) |
+| Cell annotation | Automated classification | CellTypist (Immune_All_High model) |
+| Microglial filtering | Marker validation | CX3CR1, P2RY12, TMEM119 expression |
+| Batch integration | Deep generative model | scVI (n_latent=30, n_layers=2, max_epochs=400) |
+| Batch integration (alt.) | Mutual nearest neighbors | Scanorama |
+| Clustering | Community detection | Leiden algorithm (multi-resolution 0.1-1.0) |
+| Resolution selection | Cluster quality | Silhouette score optimization |
+| Differential expression | Rank-based test | Wilcoxon rank-sum (min log2FC=0.25) |
+| Pathway enrichment | Gene set analysis | decoupler + MSigDB |
+| Meta-analysis | Pooled effect estimation | Fixed-effects model with Wilson score CIs |
+| Heterogeneity testing | Consistency metric | I² statistic |
+
+### Statistical Framework
+
+- **Effect sizes**: Activation state proportions per dataset with Wilson score confidence intervals
+- **Meta-analysis**: Fixed-effects model for pooled proportion estimates
+- **Conservation testing**: Cross-dataset reproducibility with statistical significance testing
+- **Multiple testing correction**: Applied where appropriate
+
+## Datasets
+
+| GEO ID | Reference | Species | Tissue | Condition |
+|--------|-----------|---------|--------|-----------|
+| [GSE98969](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE98969) | Keren-Shaul et al. (2017) | Mouse | Whole brain | AD model |
+| [GSE103334](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE103334) | Mathys et al. (2019) | Human | Hippocampus | AD |
+| [GSE135437](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE135437) | Sankowski et al. (2019) | Human | Cortex | AD |
+| [GSE157827](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE157827) | Leng et al. (2021) | Human | Prefrontal cortex | AD |
+| [GSE129788](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129788) | — | Mouse | Brain | Aging |
 
 ## Project Structure
 
 ```
-alzheimers_microglia_meta_analysis/
+alzheimers-microglia-meta-analysis/
+├── src/ad_microglia/              # Installable Python package
+│   ├── config/settings.py         # Centralized configuration
+│   ├── data/
+│   │   ├── download.py            # GEO dataset downloading
+│   │   └── preprocessing.py       # QC, normalization, HVG, PCA
+│   ├── integration/
+│   │   └── integration.py         # scVI & Scanorama integration
+│   ├── analysis/
+│   │   ├── cell_annotation.py     # CellTypist annotation + marker validation
+│   │   ├── activation_states.py   # Leiden clustering, DE, pathway enrichment
+│   │   └── meta_analysis.py       # Fixed-effects meta-analysis, conservation
+│   └── utils/
+│       └── plot_manager.py        # Publication-quality figure management
+├── scripts/                       # Pipeline entry points
+│   ├── 01_download_data.py
+│   ├── 02_preprocess_data.py
+│   ├── 03_annotate_cells.py
+│   ├── 04_integrate_datasets.py
+│   ├── 05_analyze_activation_states.py
+│   ├── 06_run_meta_analysis.py
+│   └── run_full_pipeline.py       # Run all steps sequentially
+├── config/
+│   ├── datasets.yaml              # Dataset metadata (5 studies)
+│   └── analysis_params.yaml       # All analysis parameters
 ├── data/
-│   ├── raw/                    # Original downloaded datasets
-│   ├── processed/              # Processed and integrated data
-│   └── metadata/               # Dataset metadata and catalogs
-├── scripts/
-│   ├── preprocessing/          # Data download and initial processing
-│   ├── integration/            # Dataset integration scripts
-│   ├── analysis/              # Activation state and meta-analysis
-│   └── visualization/         # Additional plotting scripts
+│   ├── raw/                       # Downloaded GEO datasets
+│   ├── processed/                 # Processed .h5ad files
+│   └── metadata/                  # Dataset metadata
 ├── results/
-│   ├── figures/               # All generated plots
-│   ├── tables/                # Statistical results and gene lists
-│   ├── reports/               # Analysis summary reports
-│   └── meta_analysis/         # Meta-analysis specific results
-├── notebooks/                 # Jupyter notebooks for exploration
-├── docs/                      # Documentation and protocols
-└── run_pipeline.py           # Main pipeline execution script
+│   ├── figures/                   # Publication-quality plots (by category)
+│   ├── tables/                    # Statistical results & gene signatures
+│   ├── reports/                   # Analysis summary reports
+│   └── meta_analysis/             # Forest plots, conservation results
+├── plots/                         # Organized plot outputs (PlotManager)
+├── tests/                         # pytest test suite
+├── docs/                          # Analysis protocol & installation guide
+├── pyproject.toml                 # Package configuration (PEP 518)
+└── environment.yml                # Conda environment specification
 ```
 
-## Datasets Included
-
-### Primary GEO Datasets:
-1. **GSE98969** - Keren-Shaul et al. (2017) - Mouse AD model microglia states (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE98969)
-2. **GSE103334** - Mathys et al. (2019) - Human AD hippocampus (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE103334)
-3. **GSE135437** - Sankowski et al. (2019) - Human AD cortex (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE135437)
-4. **GSE157827** - Leng et al. (2021) - Human AD prefrontal cortex (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE157827)
-5. **GSE129788** - Aging mouse brain microglia (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129788)
-
-### Specialized Databases:
-- **Single Cell Portal** - Additional AD datasets
-- **Allen Brain Map** - Reference brain cell types
-
-## Quick Start
-
-### Requirements
+## Installation
 
 ```bash
-# Core dependencies
-scanpy>=1.9.0
-pandas>=1.5.0
-numpy>=1.21.0
-scipy>=1.9.0
-matplotlib>=3.6.0
-seaborn>=0.12.0
+# Clone the repository
+git clone <repo-url>
+cd alzheimers-microglia-meta-analysis
 
-# Integration and analysis
-scvi-tools>=1.0.0
-scanpy[scanorama]>=1.9.0
-decoupler>=1.4.0
-celltypist>=1.6.0
+# Option 1: pip (recommended)
+python -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
 
-# Statistics
-statsmodels>=0.14.0
-scikit-learn>=1.1.0
-
-# Data access
-GEOparse>=2.0.3
-pandas>=1.5.0
+# Option 2: conda
+conda env create -f environment.yml
+conda activate ad-microglia
+pip install -e .
 ```
 
-### Installation
+## Usage
+
+### Full Pipeline
 
 ```bash
-# Clone or extract the project
-cd alzheimers_microglia_meta_analysis
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run complete pipeline
-python run_pipeline.py
+python scripts/run_full_pipeline.py
+# Options:
+#   --skip-download          Skip data download step
+#   --integration-method scvi|scanorama
 ```
 
-### Alternative: Step-by-step Execution
+### Step-by-Step
 
 ```bash
-# 1. Download data
-python scripts/preprocessing/01_download_data.py
-
-# 2. Initial processing
-python scripts/preprocessing/02_initial_processing.py
-
-# 3. Cell annotation  
-python scripts/preprocessing/03_cell_annotation.py
-
-# 4. Dataset integration
-python scripts/integration/01_integrate_datasets.py
-
-# 5. Activation state analysis
-python scripts/analysis/02_activation_states.py
-
-# 6. Meta-analysis validation
-python scripts/analysis/03_meta_analysis.py
+python scripts/01_download_data.py
+python scripts/02_preprocess_data.py
+python scripts/03_annotate_cells.py
+python scripts/04_integrate_datasets.py
+python scripts/05_analyze_activation_states.py
+python scripts/06_run_meta_analysis.py
 ```
 
-## Analysis Pipeline
+### Configuration
 
-### 1. Data Acquisition & Processing
-- Downloads datasets from GEO using GEOparse
-- Quality control filtering (cells: >200 genes, genes: >3 cells)
-- Normalization to 10,000 counts per cell + log1p transformation
-- Mitochondrial and ribosomal gene annotation
-
-### 2. Cell Type Annotation
-- Uses CellTypist with Immune_All_High.pkl model
-- Filters for high-confidence microglial cells
-- Validates annotations using known microglial markers (CX3CR1, P2RY12, TMEM119)
-
-### 3. Dataset Integration  
-- **Method 1**: scVI - Deep generative model for integration
-- **Method 2**: Scanorama - Mutual nearest neighbors approach
-- Evaluates integration quality using silhouette scores
-- Preserves biological signal while removing batch effects
-
-### 4. Activation State Discovery
-- Multi-resolution Leiden clustering (0.1-1.0)
-- Optimal resolution selection via silhouette score
-- Differential expression analysis between states
-- Pathway enrichment using MSigDB via decoupler
-
-### 5. Conservation Analysis
-- Identifies gene signatures conserved across datasets
-- Calculates conservation scores for each activation state
-- Cross-species validation between human and mouse data
-
-### 6. Meta-Analysis
-- Fixed-effects meta-analysis of activation state proportions  
-- Effect size calculation with Wilson score confidence intervals
-- Heterogeneity assessment using I² statistic
-- Statistical significance testing for conservation
+All parameters are configurable via:
+- `config/analysis_params.yaml` — Analysis parameters
+- `config/datasets.yaml` — Dataset metadata
+- `.env` file — Environment variable overrides (see `.env.example`)
 
 ## Key Outputs
 
-### Statistical Results
-- `results/meta_analysis/meta_analysis_results.csv` - Pooled effect sizes
-- `results/tables/gene_signatures/conserved_signatures.csv` - Conserved gene lists
-- `results/tables/gene_signatures/activation_state_markers.csv` - DE genes
+| Output | Path | Description |
+|--------|------|-------------|
+| Meta-analysis results | `results/meta_analysis/meta_analysis_results.csv` | Pooled effect sizes and CIs |
+| Gene signatures | `results/tables/gene_signatures/conserved_signatures.csv` | Conserved activation state genes |
+| DE markers | `results/tables/activation_state_markers.csv` | Per-state marker genes |
+| Forest plots | `results/meta_analysis/forest_plots.pdf` | Meta-analysis visualization |
+| Conservation plots | `results/meta_analysis/conservation_significance.pdf` | Cross-study conservation |
+| Analysis figures | `results/figures/activation_states/` | UMAP, heatmaps, dot plots |
+| Summary reports | `results/reports/` | Markdown analysis summaries |
 
-### Visualizations
-- `results/figures/activation_states/comprehensive_analysis.pdf` - Main analysis
-- `results/meta_analysis/forest_plots.pdf` - Meta-analysis forest plots
-- `results/meta_analysis/conservation_significance.pdf` - Conservation testing
+## Testing
 
-### Reports
-- `results/reports/activation_states_summary.md` - Analysis summary
-- `results/meta_analysis/meta_analysis_report.md` - Meta-analysis results
-- `docs/analysis_protocol.md` - Detailed methodology
+```bash
+# Quick single-dataset test
+python -m pytest tests/test_quick.py -v
 
-## Expected Results
-
-Based on the analysis design, you should expect to find:
-
-1. **3-5 conserved microglial activation states** across datasets
-2. **Gene signatures** for each state (50-200 genes per state)
-3. **Cross-species conservation** for major activation programs
-4. **Statistical validation** of conservation (p<0.05 for conserved states)
-5. **Pathway enrichment** showing functional relevance (neuroinflammation, phagocytosis, etc.)
-
-## Methodology References
-
-### Integration Methods
-- **scVI**: Lopez et al., Nature Methods 2018 [1]
-- **Scanorama**: Hie et al., Nature Biotechnology 2019 [2]
-
-### Cell Annotation
-- **CellTypist**: Domínguez Conde et al., Science 2022 [3]
-
-### Meta-analysis
-- **Fixed-effects model**: Borenstein et al., Introduction to Meta-Analysis 2009 [4]
-- **Effect size calculation**: Wilson, JASA 1927 [5]
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Download failures**: Check internet connection and GEO access
-2. **Memory errors**: Reduce dataset size or increase system memory
-3. **Integration failures**: Try alternative integration method
-4. **Annotation errors**: Verify CellTypist model installation
-
-### Performance Optimization
-
-- Use GPU for scVI integration if available
-- Enable parallel processing for differential expression
-- Consider subsampling for initial testing
-
-## Contributing
-
-This is a research analysis pipeline. For questions or improvements:
-
-1. Check existing documentation in `docs/`
-2. Review analysis protocol for methodology details  
-3. Examine log outputs for debugging information
-
-## License
-
-This project is for research purposes. Dataset usage subject to original publication terms.
-
-## Citation
-
-If you use this analysis pipeline, please cite the relevant methods papers and original datasets as listed in the results reports.
-
----
+# Full pipeline tests
+python -m pytest tests/ -v
+```
 
 ## References
 
-[1] López, R., Regier, J., Cole, M.B., Jordan, M.I. & Yosef, N. Deep generative modeling for single-cell transcriptomics. Nat. Methods 15, 1053–1058 (2018).
+1. Lopez, R., Regier, J., Cole, M.B., Jordan, M.I. & Yosef, N. Deep generative modeling for single-cell transcriptomics. *Nat. Methods* **15**, 1053-1058 (2018).
+2. Hie, B., Bryson, B. & Berger, B. Efficient integration of heterogeneous single-cell transcriptomes using Scanorama. *Nat. Biotechnol.* **37**, 685-691 (2019).
+3. Dominguez Conde, C. et al. Cross-tissue immune cell analysis reveals tissue-specific features in humans. *Science* **376**, eabl5197 (2022).
+4. Borenstein, M., Hedges, L.V., Higgins, J.P.T. & Rothstein, H.R. *Introduction to Meta-Analysis* (John Wiley & Sons, 2009).
+5. Wilson, E.B. Probable inference, the law of succession, and statistical inference. *J. Am. Stat. Assoc.* **22**, 209-212 (1927).
 
-[2] Hie, B., Bryson, B. & Berger, B. Efficient integration of heterogeneous single-cell transcriptomes using Scanorama. Nat. Biotechnol. 37, 685–691 (2019).
+## License
 
-[3] Domínguez Conde, C. et al. Cross-tissue immune cell analysis reveals tissue-specific features in humans. Science 376, eabl5197 (2022).
-
-[4] Borenstein, M., Hedges, L.V., Higgins, J.P.T. & Rothstein, H.R. Introduction to Meta-Analysis (John Wiley & Sons, 2009).
-
-[5] Wilson, E.B. Probable inference, the law of succession, and statistical inference. J. Am. Stat. Assoc. 22, 209–212 (1927).
+This project is for research purposes. Dataset usage is subject to original publication terms.

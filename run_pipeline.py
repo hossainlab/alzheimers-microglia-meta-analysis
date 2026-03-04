@@ -14,11 +14,11 @@ def run_script(script_path, description):
     print(f"\n{'='*60}")
     print(f"RUNNING: {description}")
     print(f"{'='*60}")
-    
+
     try:
-        result = subprocess.run([sys.executable, script_path], 
+        result = subprocess.run([sys.executable, script_path],
                               capture_output=True, text=True)
-        
+
         if result.returncode == 0:
             print(f"✓ {description} completed successfully")
             if result.stdout:
@@ -29,11 +29,11 @@ def run_script(script_path, description):
             print("Error output:")
             print(result.stderr)
             return False
-            
+
     except Exception as e:
         print(f"✗ {description} failed with exception: {e}")
         return False
-        
+
     return True
 
 def main():
@@ -41,26 +41,26 @@ def main():
     parser.add_argument('--skip-download', action='store_true',
                        help='Skip data download step')
     parser.add_argument('--integration-method', default='scvi',
-                       choices=['scvi', 'scanorama'], 
+                       choices=['scvi', 'scanorama'],
                        help='Integration method to use')
-    
+
     args = parser.parse_args()
-    
+
     # Define script paths
-    base_dir = Path('.')
+    scripts_dir = Path(__file__).parent / 'scripts'
     scripts = [
-        ('scripts/preprocessing/01_download_data.py', 'Data Download'),
-        ('scripts/preprocessing/02_preprocess_data.py', 'Data Preprocessing'),
-        ('scripts/preprocessing/03_cell_annotation.py', 'Cell Type Annotation'),
-        ('scripts/integration/01_integrate_datasets.py', 'Dataset Integration'),
-        ('scripts/analysis/01_activation_states.py', 'Activation State Analysis'),
-        ('scripts/analysis/02_meta_analysis.py', 'Meta-Analysis Validation')
+        (scripts_dir / '01_download_data.py', 'Data Download'),
+        (scripts_dir / '02_preprocess_data.py', 'Data Preprocessing'),
+        (scripts_dir / '03_annotate_cells.py', 'Cell Type Annotation'),
+        (scripts_dir / '04_integrate_datasets.py', 'Dataset Integration'),
+        (scripts_dir / '05_analyze_activation_states.py', 'Activation State Analysis'),
+        (scripts_dir / '06_run_meta_analysis.py', 'Meta-Analysis Validation')
     ]
-    
+
     # Skip download if requested
     if args.skip_download:
         scripts = scripts[1:]
-        
+
     print(f"""
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                ALZHEIMER'S MICROGLIA META-ANALYSIS PIPELINE                  ║
@@ -76,26 +76,24 @@ Pipeline Overview:
 
 Starting pipeline execution...
 """)
-    
+
     success_count = 0
     total_steps = len(scripts)
-    
+
     for script_path, description in scripts:
-        full_path = base_dir / script_path
-        
-        if not full_path.exists():
-            print(f"✗ Script not found: {full_path}")
+        if not script_path.exists():
+            print(f"✗ Script not found: {script_path}")
             continue
-            
-        success = run_script(full_path, description)
-        
+
+        success = run_script(script_path, description)
+
         if success:
             success_count += 1
         else:
             print(f"\n⚠️  Pipeline stopped due to failure in: {description}")
             print("You can fix the issue and rerun from this step.")
             break
-            
+
     print(f"""
 \n{'='*80}
 PIPELINE EXECUTION SUMMARY
@@ -103,11 +101,11 @@ PIPELINE EXECUTION SUMMARY
 
 Completed steps: {success_count}/{total_steps}
 
-""" + ('✓ All steps completed successfully!' if success_count == total_steps else 
-     f'⚠️  Stopped at step {success_count + 1}: {scripts[success_count][1]}') + """
+{'✓ All steps completed successfully!' if success_count == total_steps else
+ f'⚠️  Pipeline did not complete all steps.'}
 
 Results are saved in:
-- data/processed/      - Processed datasets  
+- data/processed/      - Processed datasets
 - results/figures/     - Analysis plots
 - results/tables/      - Statistical results
 - results/reports/     - Summary reports

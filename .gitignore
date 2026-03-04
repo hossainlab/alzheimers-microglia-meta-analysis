@@ -1,11 +1,14 @@
-# Data directories (large files)
-data/raw/
-data/processed/
-data/metadata/
+# Data directories (large files, but keep structure)
+data/raw/*
+data/processed/*
+data/metadata/*
+!data/**/.gitkeep
 
-# Results and outputs
-results/
-plots/
+# Results and outputs (keep structure)
+results/**/*
+!results/**/.gitkeep
+plots/**/*
+!plots/.gitkeep
 *.h5ad
 *.h5
 *.claude

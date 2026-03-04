@@ -115,49 +115,39 @@ class DataPreprocessor:
 
     def generate_qc_plots(self, adata, dataset_name, output_dir):
         """Generate quality control plots."""
-        with PlotContext(
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+        fig.suptitle(f'Quality Control Metrics - {dataset_name}', fontsize=16)
+
+        # Total counts
+        sc.pl.violin(adata, ['total_counts'],
+                    jitter=0.4, multi_panel=True, ax=axes[0,0], show=False)
+        axes[0,0].set_title('Total Counts')
+
+        # Gene counts
+        sc.pl.violin(adata, ['n_genes_by_counts'],
+                    jitter=0.4, multi_panel=True, ax=axes[0,1], show=False)
+        axes[0,1].set_title('Gene Counts')
+
+        # Mitochondrial percentage
+        sc.pl.violin(adata, ['pct_counts_mt'],
+                    jitter=0.4, multi_panel=True, ax=axes[0,2], show=False)
+        axes[0,2].set_title('Mitochondrial %')
+
+        # Scatter plots
+        sc.pl.scatter(adata, x='total_counts', y='pct_counts_mt', ax=axes[1,0], show=False)
+        sc.pl.scatter(adata, x='total_counts', y='n_genes_by_counts', ax=axes[1,1], show=False)
+        sc.pl.scatter(adata, x='n_genes_by_counts', y='pct_counts_mt', ax=axes[1,2], show=False)
+
+        plt.tight_layout()
+
+        # Save using plot manager
+        self.plot_manager.save_plot(
+            fig,
             f'{dataset_name}_qc_metrics',
             'qc',
             f'Quality control metrics for {dataset_name}',
-            ['pdf', 'png'],
-            figsize=(15, 10)
-        ) as (fig, ax):
-
-            # Create subplots manually since PlotContext gives us only one axis
-            plt.close(fig)  # Close the single axis figure
-            fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-            fig.suptitle(f'Quality Control Metrics - {dataset_name}', fontsize=16)
-
-            # Total counts
-            sc.pl.violin(adata, ['total_counts'],
-                        jitter=0.4, multi_panel=True, ax=axes[0,0], show=False)
-            axes[0,0].set_title('Total Counts')
-
-            # Gene counts
-            sc.pl.violin(adata, ['n_genes_by_counts'],
-                        jitter=0.4, multi_panel=True, ax=axes[0,1], show=False)
-            axes[0,1].set_title('Gene Counts')
-
-            # Mitochondrial percentage
-            sc.pl.violin(adata, ['pct_counts_mt'],
-                        jitter=0.4, multi_panel=True, ax=axes[0,2], show=False)
-            axes[0,2].set_title('Mitochondrial %')
-
-            # Scatter plots
-            sc.pl.scatter(adata, x='total_counts', y='pct_counts_mt', ax=axes[1,0], show=False)
-            sc.pl.scatter(adata, x='total_counts', y='n_genes_by_counts', ax=axes[1,1], show=False)
-            sc.pl.scatter(adata, x='n_genes_by_counts', y='pct_counts_mt', ax=axes[1,2], show=False)
-
-            plt.tight_layout()
-
-            # Save using plot manager
-            self.plot_manager.save_plot(
-                fig,
-                f'{dataset_name}_qc_metrics',
-                'qc',
-                f'Quality control metrics for {dataset_name}',
-                ['pdf', 'png']
-            )
+            ['pdf', 'png']
+        )
 
     def load_raw_data(self, dataset_path, dataset_name):
         """Load raw data from various formats."""

@@ -11,9 +11,9 @@ datasets:
 
   GSE103334:
     description: "Mathys et al. (2019) - Human AD hippocampus"
-    species: "mouse"
+    species: "human"
     tissue: "hippocampus"
-    condition: "AD_model"
+    condition: "AD"
     reference: "https://doi.org/10.1038/s41586-019-1195-2"
     geo_url: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE103334"
 

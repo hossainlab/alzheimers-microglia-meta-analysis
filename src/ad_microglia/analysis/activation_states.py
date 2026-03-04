@@ -28,6 +28,7 @@ class ActivationStateAnalyzer:
         # Create results subdirectories
         (self.results_dir / 'figures' / 'activation_states').mkdir(parents=True, exist_ok=True)
         (self.results_dir / 'tables' / 'gene_signatures').mkdir(parents=True, exist_ok=True)
+        (self.results_dir / 'reports').mkdir(parents=True, exist_ok=True)
         
     def load_integrated_data(self, method='scvi'):
         """Load integrated microglial data"""
@@ -276,28 +277,29 @@ class ActivationStateAnalyzer:
         mouse_data = adata[adata.obs['species'] == 'mouse']
         
         validation_results = {}
-        
+
         if human_data.n_obs > 0 and mouse_data.n_obs > 0:
             # Compare activation state distributions
             human_states = human_data.obs['activation_state'].value_counts()
             mouse_states = mouse_data.obs['activation_state'].value_counts()
-            
+
             # Create comparison DataFrame
             comparison_df = pd.DataFrame({
                 'human': human_states,
                 'mouse': mouse_states
             }).fillna(0)
-            
+
             # Calculate correlation
+            correlation = np.nan
             if len(comparison_df) > 1:
                 correlation = comparison_df['human'].corr(comparison_df['mouse'])
                 validation_results['state_distribution_correlation'] = correlation
-                
+
             # Save species comparison
             comparison_df.to_csv(
                 self.results_dir / 'tables/species_activation_comparison.csv'
             )
-            
+
             print(f"Species state correlation: {correlation:.3f}")
             
         return validation_results
@@ -361,7 +363,8 @@ class ActivationStateAnalyzer:
         if available_markers:
             marker_expr = pd.DataFrame(index=adata.obs_names)
             for marker in available_markers:
-                marker_expr[marker] = adata[:, marker].X.toarray().flatten()
+                x = adata[:, marker].X
+                marker_expr[marker] = (x.toarray() if hasattr(x, 'toarray') else np.asarray(x)).flatten()
                 
             marker_expr['activation_state'] = adata.obs['activation_state']
             
@@ -483,7 +486,7 @@ def main():
     analyzer.create_summary_report(adata, conserved_signatures, validation_results)
     
     # Save final annotated data
-    adata.write(analyzer.processed_data_dir / 'microglia_activation_states_final.h5ad')
+    adata.write(analyzer.processed_data_dir / 'microglia_activation_states.h5ad')
     
     print(f"\n{'='*60}")
     print("ACTIVATION STATE ANALYSIS COMPLETE")

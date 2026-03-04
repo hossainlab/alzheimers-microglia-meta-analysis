@@ -47,7 +47,7 @@ class MicrogliaIntegrator:
                 adata.obs['dataset'] = dataset_name
                 
                 # Add species information based on dataset
-                if dataset_name in ['GSE98969', 'GSE103334', 'GSE129788']:
+                if dataset_name in ['GSE98969', 'GSE129788']:
                     adata.obs['species'] = 'mouse'
                 else:
                     adata.obs['species'] = 'human'
@@ -79,10 +79,10 @@ class MicrogliaIntegrator:
                 'age_group': 'mixed'
             },
             'GSE103334': {
-                'study': 'Mathys_2019', 
+                'study': 'Mathys_2019',
                 'tissue': 'hippocampus',
-                'condition': 'AD_model',
-                'age_group': 'multiple_timepoints'
+                'condition': 'AD_human',
+                'age_group': 'elderly'
             },
             'GSE135437': {
                 'study': 'Sankowski_2019',
@@ -152,10 +152,11 @@ class MicrogliaIntegrator:
             print("Warning: Very few common genes found. This may indicate data format issues.")
         
         # Subset to common genes and clean data
-        for adata in datasets:
-            adata._inplace_subset_var(common_genes)
+        for i, adata in enumerate(datasets):
+            datasets[i] = adata[:, common_genes].copy()
             
             # Clean up any remaining NaN or inf values
+            adata = datasets[i]
             if hasattr(adata.X, 'toarray'):
                 X_data = adata.X.toarray()
             else:
@@ -168,13 +169,14 @@ class MicrogliaIntegrator:
             
             # Update the data
             adata.X = X_data
-            
-        # Concatenate
-        adata_concat = datasets[0].concatenate(
-            datasets[1:], 
-            batch_categories=dataset_names,
-            index_unique='-'
-        )
+            datasets[i] = adata
+
+        # Concatenate using modern API
+        import anndata
+        for i, (adata, name) in enumerate(zip(datasets, dataset_names)):
+            adata.obs['batch'] = name
+        adata_concat = anndata.concat(datasets, join='inner', merge='same')
+        adata_concat.obs_names_make_unique()
         
         # Final cleanup of concatenated data
         if hasattr(adata_concat.X, 'toarray'):
@@ -291,10 +293,10 @@ class MicrogliaIntegrator:
             batch_sil = silhouette_score(embedding, adata_integrated.obs['batch'])
             
             # Cell type silhouette (higher is better for preservation)  
-            if 'celltypist_Immune_All_High.pkl' in adata_integrated.obs.columns:
+            if 'celltypist_predicted_labels' in adata_integrated.obs.columns:
                 celltype_sil = silhouette_score(
                     embedding, 
-                    adata_integrated.obs['celltypist_Immune_All_High.pkl']
+                    adata_integrated.obs['celltypist_predicted_labels']
                 )
             else:
                 celltype_sil = np.nan
@@ -340,8 +342,8 @@ class MicrogliaIntegrator:
         axes[0,2].set_title('Condition')
         
         # Cell type annotations
-        if 'celltypist_Immune_All_High.pkl' in adata_integrated.obs.columns:
-            sc.pl.umap(adata_integrated, color='celltypist_Immune_All_High.pkl', 
+        if 'celltypist_predicted_labels' in adata_integrated.obs.columns:
+            sc.pl.umap(adata_integrated, color='celltypist_predicted_labels', 
                       ax=axes[1,0], show=False, frameon=False, legend_fontsize=6)
             axes[1,0].set_title('Cell Types')
             
@@ -359,7 +361,9 @@ class MicrogliaIntegrator:
         axes[1,2].tick_params(axis='x', rotation=45)
         
         plt.tight_layout()
-        plt.savefig(self.results_dir / f'figures/{method_name}_integration.pdf',
+        figures_dir = self.results_dir / 'figures'
+        figures_dir.mkdir(parents=True, exist_ok=True)
+        plt.savefig(figures_dir / f'{method_name}_integration.pdf',
                    dpi=300, bbox_inches='tight')
         plt.close()
 

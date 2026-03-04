@@ -14,7 +14,6 @@ from scipy import stats
 from sklearn.metrics import adjusted_rand_score
 from scipy.stats import fisher_exact
 import statsmodels.api as sm
-from statsmodels.stats.meta_analysis import combine_effects
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -24,7 +23,7 @@ class MetaAnalysisValidator:
         self.results_dir = Path(results_dir)
         
         # Create meta-analysis results directory
-        (self.results_dir / 'meta_analysis').mkdir(exist_ok=True)
+        (self.results_dir / 'meta_analysis').mkdir(parents=True, exist_ok=True)
         
     def load_final_data(self):
         """Load final annotated microglial data"""
